@@ -1,64 +1,285 @@
 # Root Pattern for Unity
 
-Small framework for creating an application from a composition root.
+> A small, explicit Composition Root framework for Unity applications.
 
-`Root<TContext>` is a plain C# class. It has no update loop and exposes only two
-lifecycle operations: `Initialize()` and `Dispose()`. It composes an object graph
-from an explicit, strongly typed context; it does not own a tree of child roots.
+`Root` helps create an application object graph from one clearly defined entry
+point. It keeps dependencies visible, works with both pure C# and Unity scene
+objects, and has no hidden update loop or service locator.
 
-## Assemblies
+## Why Root?
 
-- `Root` — the framework, including the optional `RootBehaviour` Unity adapter.
-- `Root.Example` — working examples of the plain C# and `MonoBehaviour` entry points.
+Complex Unity projects often spread creation logic between `MonoBehaviour`s,
+singletons and static accessors. Root makes the composition boundary explicit:
 
-## Core usage
+```text
+Scene / prefab                         Pure C# entry point
+      │                                        │
+      ▼                                        ▼
+RootBehaviour ── serialized context ──► Root<TContext>
+                                               │
+                                               ▼
+                                   application object graph
+```
+
+The root creates and wires the objects needed by an application feature. The
+objects themselves receive explicit constructor arguments; the framework never
+looks dependencies up by type at runtime.
+
+## Principles
+
+| Principle | Meaning |
+| --- | --- |
+| Explicit dependencies | Every root receives one strongly typed context. |
+| Pure C# core | `Root<TContext>` does not inherit from `MonoBehaviour`. |
+| Unity adapter | `RootBehaviour` is only an optional bridge from a scene or prefab. |
+| Controlled lifetime | A root has `Initialize()`, `Dispose()` and one cancellation token. |
+| No hidden architecture | No update loop, global root, dependency container or automatic child-root tree. |
+
+## Installation
+
+### Git submodule
+
+```bash
+git submodule add https://github.com/Azzazelloqq/Root-pattern.git Assets/Root
+```
+
+### Unity Package Manager
+
+Add the dependency to `Packages/manifest.json`:
+
+```json
+{
+  "dependencies": {
+    "com.azzazello.root": "https://github.com/Azzazelloqq/Root-pattern.git"
+  }
+}
+```
+
+The package supports Unity `2020.3` and newer.
+
+## Quick start: pure C# root
+
+First, describe exactly what the root needs. A context must be a `struct` that
+implements `IRootContext`.
 
 ```csharp
-var context = new GameRootContext(camera, gameConfig, new GameLog());
+using RootPattern;
+
+public interface IGameLog
+{
+    void Write(string message);
+}
+
+public readonly struct GameContext : IRootContext
+{
+    public GameContext(IGameLog log, string playerName)
+    {
+        Log = log;
+        PlayerName = playerName;
+    }
+
+    public IGameLog Log { get; }
+    public string PlayerName { get; }
+}
+```
+
+Create a root from that context:
+
+```csharp
+using RootPattern;
+
+public sealed class GameRoot : Root<GameContext>
+{
+    public GameRoot(GameContext context) : base(context)
+    {
+    }
+
+    protected override void OnInitialize()
+    {
+        Context.Log.Write($"Welcome, {Context.PlayerName}!");
+    }
+}
+```
+
+Compose and run it at the application boundary:
+
+```csharp
+var context = new GameContext(new ConsoleGameLog(), "Player");
 
 using var root = new GameRoot(context);
 root.Initialize();
 ```
 
-Every root declares its required context type:
+## Unity scene or prefab entry point
+
+Unity can serialize a concrete context struct containing supported Unity fields.
+The `MonoBehaviour` creates the regular C# root; it does not contain application
+logic itself.
 
 ```csharp
-public sealed class GameRoot : Root<GameRootContext>
+using System;
+using RootPattern;
+using UnityEngine;
+
+[Serializable]
+public struct GameSceneContext : IRootContext
 {
-    public GameRoot(GameRootContext context) : base(context) { }
+    [SerializeField] private Camera _camera;
+    [SerializeField] private string _playerName;
+    [NonSerialized] private IGameLog _log;
+
+    public Camera Camera => _camera;
+    public string PlayerName => _playerName;
+    public IGameLog Log => _log;
+
+    private GameSceneContext(Camera camera, string playerName, IGameLog log)
+    {
+        _camera = camera;
+        _playerName = playerName;
+        _log = log;
+    }
+
+    public GameSceneContext WithLog(IGameLog log)
+    {
+        return new GameSceneContext(_camera, _playerName, log);
+    }
 }
-```
 
-Contexts are `struct` types implementing `IRootContext`. They make dependencies
-explicit and prevent the framework from becoming a service locator.
+public sealed class GameSceneRoot : Root<GameSceneContext>
+{
+    public GameSceneRoot(GameSceneContext context) : base(context)
+    {
+    }
 
-Each root also exposes a `CancellationToken`. It is cancelled before `OnDispose`
-and if initialization fails, so operations created by the root can stop with its
-lifetime:
+    protected override void OnInitialize()
+    {
+        Context.Log.Write($"Welcome, {Context.PlayerName}!");
+    }
+}
 
-```csharp
-await LoadAsync(CancellationToken);
-```
-
-## Unity usage
-
-Derive a scene or prefab component from `RootBehaviour`, serialize a concrete
-context struct in it, and create the plain C# root in `CreateRoot`.
-
-```csharp
 public sealed class GameRootBehaviour : RootBehaviour
 {
-    [SerializeField] private GameRootContext _context;
+    [SerializeField] private GameSceneContext _context;
 
-    protected override IRoot CreateRoot() => new GameRoot(_context);
+    private void Awake()
+    {
+        InitializeRoot();
+    }
 
-    private void Awake() => InitializeRoot();
+    protected override IRoot CreateRoot()
+    {
+        return new GameSceneRoot(_context.WithLog(new UnityGameLog()));
+    }
+
+    private sealed class UnityGameLog : IGameLog
+    {
+        public void Write(string message)
+        {
+            Debug.Log(message);
+        }
+    }
 }
 ```
 
-The choice of Unity callback is application code, not part of the root API.
-`RootBehaviour` disposes the created root in `OnDestroy`.
+`RootBehaviour` calls `Dispose()` on the created root from `OnDestroy`. The
+choice of when to call `InitializeRoot()` is application code: `Awake`, `Start`,
+a custom bootstrapper, or any other appropriate entry point.
 
-Unity serializes only Unity-supported fields of a context. Runtime-only
-dependencies can be supplied through its constructor or by returning a copied
-context from a method such as `WithLog` before creating the root.
+### Runtime-only dependencies
+
+Unity cannot serialize interfaces and arbitrary managed objects. Keep serialized
+references in the context, then create a copy enriched with runtime-only
+dependencies before constructing the root. Replace `CreateRoot` above with:
+
+```csharp
+protected override IRoot CreateRoot()
+{
+    var runtimeContext = _context.WithLog(new UnityGameLog());
+    return new GameSceneRoot(runtimeContext);
+}
+```
+
+`Root.Example` contains this complete scenario in
+[`ExampleRootContext`](Example/ExampleContracts.cs),
+[`ExampleRootBehaviour`](Example/ExampleRootBehaviour.cs) and
+[`PlainRootExample`](Example/PlainRootExample.cs).
+
+## Lifecycle and cancellation
+
+Each root follows a small, explicit lifecycle:
+
+```text
+Created ── Initialize() ──► Initialized ── Dispose() ──► Disposed
+                │
+                └──► InitializationFailed
+```
+
+`IRoot.CancellationToken` belongs to the root lifetime. It is cancelled when
+initialization fails and immediately before `OnDispose()` runs.
+
+```csharp
+protected override void OnInitialize()
+{
+    _operation = LoadDataAsync(CancellationToken);
+}
+
+protected override void OnDispose()
+{
+    // CancellationToken is already cancelled here.
+    // Release only the resources this root created directly.
+}
+```
+
+`Dispose()` is safe to call repeatedly. Calling `Initialize()` more than once
+is treated as an error.
+
+## What Root deliberately does not do
+
+- It is not a dependency injection container.
+- It does not expose `Get<T>()` or a global service locator.
+- It does not manage an `Update`, `Tick` or player loop.
+- It does not own or automatically dispose child roots.
+- It does not dictate Unity callback timing.
+
+Those decisions stay visible in your application code.
+
+## Project layout
+
+```text
+Root-pattern/
+├── Source/
+│   ├── IRoot.cs
+│   ├── IRootContext.cs
+│   ├── Root.cs
+│   ├── RootBehaviour.cs
+│   └── Root.asmdef
+└── Example/
+    ├── ExampleRootContext and usage samples
+    └── Root.Example.asmdef
+```
+
+## API summary
+
+```csharp
+public interface IRoot : IDisposable
+{
+    CancellationToken CancellationToken { get; }
+    void Initialize();
+}
+
+public abstract class Root<TContext> : IRoot
+    where TContext : struct, IRootContext
+{
+    protected Root(TContext context);
+    protected TContext Context { get; }
+
+    public RootState State { get; }
+    public CancellationToken CancellationToken { get; }
+
+    public void Initialize();
+    public void Dispose();
+
+    protected abstract void OnInitialize();
+    protected virtual void OnDispose();
+}
+```
