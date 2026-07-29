@@ -1,0 +1,12 @@
+{
+  "name": "com.azzazello.root",
+  "version": "0.1.0",
+  "displayName": "Root",
+  "description": "A small root-tree framework for Unity applications.",
+  "unity": "2020.3",
+  "author": {
+    "name": "Azzazelloqq",
+    "email": "bog22232@ya.ru",
+    "url": "https://github.com/Azzazelloqq"
+  }
+}
