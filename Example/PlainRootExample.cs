@@ -7,12 +7,12 @@ namespace RootPattern.Example
     /// </summary>
     public static class PlainRootExample
     {
-        public static Root Create()
+        public static IRoot Create()
         {
-            var context = new RootContextBuilder()
-                .Register<IExampleLog>(new ConsoleExampleLog())
-                .Register(new ExampleSettings("Plain root"))
-                .Build();
+            var context = new ExampleRootContext(
+                view: null,
+                rootName: "Plain root",
+                log: new ConsoleExampleLog());
 
             return new ExampleApplicationRoot(context);
         }

@@ -8,13 +8,13 @@ namespace RootPattern
     /// </summary>
     public abstract class RootBehaviour : MonoBehaviour
     {
-        private Root _root;
+        private IRoot _root;
         private bool _disposed;
 
         /// <summary>
         /// The created root. It is available after <see cref="InitializeRoot"/> has been called.
         /// </summary>
-        public Root Root => _root ?? throw new InvalidOperationException("The root has not been created yet.");
+        public IRoot Root => _root ?? throw new InvalidOperationException("The root has not been created yet.");
 
         /// <summary>
         /// Builds the context, creates the root if needed and initializes it.
@@ -28,9 +28,7 @@ namespace RootPattern
 
             if (_root == null)
             {
-                var builder = new RootContextBuilder();
-                ConfigureContext(builder);
-                _root = CreateRoot(builder.Build()) ?? throw new InvalidOperationException("CreateRoot returned null.");
+                _root = CreateRoot() ?? throw new InvalidOperationException("CreateRoot returned null.");
             }
 
             _root.Initialize();
@@ -51,16 +49,9 @@ namespace RootPattern
         }
 
         /// <summary>
-        /// Adds serialized Unity references and runtime dependencies to the entry context.
-        /// </summary>
-        protected virtual void ConfigureContext(RootContextBuilder builder)
-        {
-        }
-
-        /// <summary>
         /// Creates the plain C# entry root for this component.
         /// </summary>
-        protected abstract Root CreateRoot(IRootContext context);
+        protected abstract IRoot CreateRoot();
 
         protected virtual void OnDestroy()
         {

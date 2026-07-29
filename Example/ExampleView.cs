@@ -5,7 +5,7 @@ namespace RootPattern.Example
     /// <summary>
     /// A scene or prefab dependency registered by <see cref="ExampleRootBehaviour"/>.
     /// </summary>
-    public sealed class ExampleView : MonoBehaviour, IExampleView
+    public sealed class ExampleView : MonoBehaviour
     {
         [SerializeField] private string _lastMessage;
 

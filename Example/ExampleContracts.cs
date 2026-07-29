@@ -1,3 +1,6 @@
+using System;
+using UnityEngine;
+
 namespace RootPattern.Example
 {
     public interface IExampleLog
@@ -5,18 +8,27 @@ namespace RootPattern.Example
         void Write(string message);
     }
 
-    public interface IExampleView
+    [Serializable]
+    public struct ExampleRootContext : IRootContext
     {
-        void Show(string message);
-    }
+        [SerializeField] private ExampleView _view;
+        [SerializeField] private string _rootName;
+        [NonSerialized] private IExampleLog _log;
 
-    public sealed class ExampleSettings
-    {
-        public ExampleSettings(string rootName)
+        public ExampleRootContext(ExampleView view, string rootName, IExampleLog log)
         {
-            RootName = rootName;
+            _view = view;
+            _rootName = rootName;
+            _log = log ?? throw new ArgumentNullException(nameof(log));
         }
 
-        public string RootName { get; }
+        public ExampleView View => _view;
+        public string RootName => _rootName;
+        public IExampleLog Log => _log ?? throw new InvalidOperationException("A runtime log must be supplied before creating the root.");
+
+        public ExampleRootContext WithLog(IExampleLog log)
+        {
+            return new ExampleRootContext(_view, _rootName, log);
+        }
     }
 }

@@ -5,32 +5,23 @@ namespace RootPattern.Example
     /// <summary>
     /// Shared root used by both entry-point examples.
     /// </summary>
-    public sealed class ExampleApplicationRoot : Root
+    public sealed class ExampleApplicationRoot : Root<ExampleRootContext>
     {
-        private readonly IExampleLog _log;
-        private readonly ExampleSettings _settings;
         private IDisposable _ownedResource;
 
-        public ExampleApplicationRoot(IRootContext context)
+        public ExampleApplicationRoot(ExampleRootContext context)
             : base(context)
         {
-            _log = context.Get<IExampleLog>();
-            _settings = context.Get<ExampleSettings>();
         }
 
         protected override void OnInitialize()
         {
-            _ownedResource = new ExampleResource(_log, _settings.RootName);
-            _log.Write($"{_settings.RootName}: initialized.");
+            _ownedResource = new ExampleResource(Context.Log, Context.RootName);
+            Context.Log.Write($"{Context.RootName}: initialized.");
 
-            var featureContext = Context.CreateChild(builder =>
-                builder.Register(new ExampleSettings($"{_settings.RootName} feature")));
-
-            AddChild(new ExampleFeatureRoot(featureContext));
-
-            if (Context.TryGet<IExampleView>(out var view))
+            if (Context.View != null)
             {
-                view.Show($"{_settings.RootName}: view dependency received from Unity.");
+                Context.View.Show($"{Context.RootName}: view dependency received from Unity.");
             }
         }
 
@@ -38,7 +29,7 @@ namespace RootPattern.Example
         {
             _ownedResource?.Dispose();
             _ownedResource = null;
-            _log.Write($"{_settings.RootName}: disposed.");
+            Context.Log.Write($"{Context.RootName}: disposed.");
         }
 
         private sealed class ExampleResource : IDisposable
