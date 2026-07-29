@@ -1,4 +1,6 @@
 using System;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 namespace RootPattern
 {
     /// <summary>
@@ -7,6 +9,7 @@ namespace RootPattern
     public abstract class Root<TContext> : IRoot
         where TContext : struct, IRootContext
     {
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private RootState _state = RootState.Created;
 
         protected Root(TContext context)
@@ -25,6 +28,11 @@ namespace RootPattern
         public RootState State => _state;
 
         /// <summary>
+        /// Is cancelled when this root begins disposal or initialization fails.
+        /// </summary>
+        public CancellationToken CancellationToken => _cancellationTokenSource.Token;
+
+        /// <summary>
         /// Initializes the object graph composed by this root.
         /// </summary>
         public void Initialize()
@@ -41,6 +49,7 @@ namespace RootPattern
             catch
             {
                 _state = RootState.InitializationFailed;
+                _cancellationTokenSource.Cancel();
                 throw;
             }
         }
@@ -61,13 +70,45 @@ namespace RootPattern
             }
 
             _state = RootState.Disposing;
+            Exception cancellationException = null;
+            Exception disposeException = null;
+
+            try
+            {
+                _cancellationTokenSource.Cancel();
+            }
+            catch (Exception exception)
+            {
+                cancellationException = exception;
+            }
+
             try
             {
                 OnDispose();
             }
+            catch (Exception exception)
+            {
+                disposeException = exception;
+            }
             finally
             {
+                _cancellationTokenSource.Dispose();
                 _state = RootState.Disposed;
+            }
+
+            if (cancellationException != null && disposeException != null)
+            {
+                throw new AggregateException(cancellationException, disposeException);
+            }
+
+            if (cancellationException != null)
+            {
+                ExceptionDispatchInfo.Capture(cancellationException).Throw();
+            }
+
+            if (disposeException != null)
+            {
+                ExceptionDispatchInfo.Capture(disposeException).Throw();
             }
         }
 

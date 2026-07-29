@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace RootPattern
 {
@@ -7,6 +8,11 @@ namespace RootPattern
     /// </summary>
     public interface IRoot : IDisposable
     {
+        /// <summary>
+        /// Is cancelled when the root begins disposal or initialization fails.
+        /// </summary>
+        CancellationToken CancellationToken { get; }
+
         void Initialize();
     }
 }

@@ -32,6 +32,14 @@ public sealed class GameRoot : Root<GameRootContext>
 Contexts are `struct` types implementing `IRootContext`. They make dependencies
 explicit and prevent the framework from becoming a service locator.
 
+Each root also exposes a `CancellationToken`. It is cancelled before `OnDispose`
+and if initialization fails, so operations created by the root can stop with its
+lifetime:
+
+```csharp
+await LoadAsync(CancellationToken);
+```
+
 ## Unity usage
 
 Derive a scene or prefab component from `RootBehaviour`, serialize a concrete
