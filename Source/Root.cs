@@ -4,23 +4,12 @@ using System.Threading;
 namespace RootPattern
 {
     /// <summary>
-    /// Base class for a strongly typed application composition root.
+    /// Base class for an application composition root.
     /// </summary>
-    public abstract class Root<TContext> : IRoot
-        where TContext : struct, IRootContext
+    public abstract class Root : IDisposable
     {
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private RootState _state = RootState.Created;
-
-        protected Root(TContext context)
-        {
-            Context = context;
-        }
-
-        /// <summary>
-        /// Explicit dependencies required by this root.
-        /// </summary>
-        protected TContext Context { get; }
 
         /// <summary>
         /// The current lifecycle state.

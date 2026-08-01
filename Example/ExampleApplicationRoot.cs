@@ -3,33 +3,31 @@ using System;
 namespace RootPattern.Example
 {
     /// <summary>
-    /// Shared root used by both entry-point examples.
+    /// Example application composition root.
     /// </summary>
-    public sealed class ExampleApplicationRoot : Root<ExampleRootContext>
+    public sealed class ExampleApplicationRoot : Root
     {
+        private readonly IExampleLog _log;
+        private readonly string _rootName;
         private IDisposable _ownedResource;
 
-        public ExampleApplicationRoot(ExampleRootContext context)
-            : base(context)
+        public ExampleApplicationRoot(IExampleLog log, string rootName)
         {
+            _log = log ?? throw new ArgumentNullException(nameof(log));
+            _rootName = rootName ?? throw new ArgumentNullException(nameof(rootName));
         }
 
         protected override void OnInitialize()
         {
-            _ownedResource = new ExampleResource(Context.Log, Context.RootName);
-            Context.Log.Write($"{Context.RootName}: initialized.");
-
-            if (Context.View != null)
-            {
-                Context.View.Show($"{Context.RootName}: view dependency received from Unity.");
-            }
+            _ownedResource = new ExampleResource(_log, _rootName);
+            _log.Write($"{_rootName}: initialized.");
         }
 
         protected override void OnDispose()
         {
             _ownedResource?.Dispose();
             _ownedResource = null;
-            Context.Log.Write($"{Context.RootName}: disposed.");
+            _log.Write($"{_rootName}: disposed.");
         }
 
         private sealed class ExampleResource : IDisposable

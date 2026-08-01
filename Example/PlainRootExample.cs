@@ -3,18 +3,13 @@ using System;
 namespace RootPattern.Example
 {
     /// <summary>
-    /// Demonstrates creating an entry root without MonoBehaviour or Unity serialization.
+    /// Demonstrates creating an entry root with explicit constructor dependencies.
     /// </summary>
     public static class PlainRootExample
     {
-        public static IRoot Create()
+        public static Root Create()
         {
-            var context = new ExampleRootContext(
-                view: null,
-                rootName: "Plain root",
-                log: new ConsoleExampleLog());
-
-            return new ExampleApplicationRoot(context);
+            return new ExampleApplicationRoot(new ConsoleExampleLog(), "Plain root");
         }
 
         private sealed class ConsoleExampleLog : IExampleLog
