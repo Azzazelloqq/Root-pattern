@@ -1,6 +1,6 @@
 {
   "name": "com.azzazello.root",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Root",
   "description": "A small, explicit lifecycle base for Unity application composition roots.",
   "unity": "2020.3",
