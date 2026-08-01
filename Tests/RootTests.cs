@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using RootTask = Cysharp.Threading.Tasks.UniTask;
 
 namespace RootPattern.Tests
 {
@@ -48,7 +49,7 @@ namespace RootPattern.Tests
             public bool InitializeAsyncCalled { get; private set; }
             public CancellationToken InitializeToken { get; private set; }
 
-            protected override ValueTask OnInitializeAsync(CancellationToken token)
+            protected override RootTask OnInitializeAsync(CancellationToken token)
             {
                 InitializeAsyncCalled = true;
                 InitializeToken = token;
@@ -58,7 +59,7 @@ namespace RootPattern.Tests
 
         private sealed class FailingRoot : Root
         {
-            protected override ValueTask OnInitializeAsync(CancellationToken token)
+            protected override RootTask OnInitializeAsync(CancellationToken token)
             {
                 throw new InvalidOperationException("Initialization failed.");
             }

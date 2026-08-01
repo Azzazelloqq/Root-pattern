@@ -1,12 +1,7 @@
 using System;
 using System.Runtime.ExceptionServices;
 using System.Threading;
-using System.Threading.Tasks;
-#if PROJECT_SUPPORT_UNITASK
 using RootTask = Cysharp.Threading.Tasks.UniTask;
-#else
-using RootTask = System.Threading.Tasks.Task;
-#endif
 
 namespace RootPattern
 {
@@ -113,7 +108,7 @@ namespace RootPattern
         /// Asynchronously creates and configures the object graph for this root.
         /// </summary>
         /// <param name="token">Cancellation token supplied to <see cref="InitializeAsync"/>.</param>
-        protected abstract ValueTask OnInitializeAsync(CancellationToken token);
+        protected abstract RootTask OnInitializeAsync(CancellationToken token);
 
         /// <summary>
         /// Releases resources owned directly by this root.

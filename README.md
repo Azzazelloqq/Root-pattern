@@ -64,7 +64,7 @@ Declare the dependencies of a concrete root directly in its constructor:
 ```csharp
 using System;
 using System.Threading;
-using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using RootPattern;
 
 public interface IGameLog
@@ -83,7 +83,7 @@ public sealed class GameRoot : Root
         _playerName = playerName ?? throw new ArgumentNullException(nameof(playerName));
     }
 
-    protected override ValueTask OnInitializeAsync(CancellationToken token)
+    protected override UniTask OnInitializeAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         _log.Write($"Welcome, {_playerName}!");
@@ -103,9 +103,7 @@ In Unity, create the root from the lifecycle component or bootstrapper that
 owns the application entry point. The package deliberately does not prescribe
 the Unity callback or provide a `MonoBehaviour` adapter.
 
-`InitializeAsync()` returns `UniTask` when the project includes UniTask; otherwise
-it returns `Task`. The root defines `PROJECT_SUPPORT_UNITASK` automatically when
-the `com.cysharp.unitask` package is available.
+`InitializeAsync()` and `OnInitializeAsync()` return `UniTask`.
 
 ## Lifecycle and cancellation
 
@@ -122,7 +120,7 @@ The token passed to `InitializeAsync()` is forwarded to `OnInitializeAsync()`.
 initialization fails and immediately before `OnDispose()` runs.
 
 ```csharp
-protected override async ValueTask OnInitializeAsync(CancellationToken token)
+protected override async UniTask OnInitializeAsync(CancellationToken token)
 {
     await LoadDataAsync(token);
 }
@@ -173,7 +171,7 @@ public abstract class Root : IDisposable
     public UniTask InitializeAsync(CancellationToken token);
     public void Dispose();
 
-    protected abstract ValueTask OnInitializeAsync(CancellationToken token);
+    protected abstract UniTask OnInitializeAsync(CancellationToken token);
     protected virtual void OnDispose();
 }
 ```

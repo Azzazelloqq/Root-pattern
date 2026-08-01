@@ -1,6 +1,6 @@
 using System;
 using System.Threading;
-using System.Threading.Tasks;
+using RootTask = Cysharp.Threading.Tasks.UniTask;
 
 namespace RootPattern.Example
 {
@@ -19,7 +19,7 @@ namespace RootPattern.Example
             _rootName = rootName ?? throw new ArgumentNullException(nameof(rootName));
         }
 
-        protected override ValueTask OnInitializeAsync(CancellationToken token)
+        protected override RootTask OnInitializeAsync(CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
             _ownedResource = new ExampleResource(_log, _rootName);
