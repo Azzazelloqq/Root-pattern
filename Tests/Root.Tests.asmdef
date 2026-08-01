@@ -3,6 +3,7 @@
   "rootNamespace": "RootPattern.Tests",
   "references": [
     "Root",
+    "UniTask",
     "UnityEngine.TestRunner",
     "UnityEditor.TestRunner"
   ],
