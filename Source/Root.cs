@@ -1,6 +1,13 @@
 using System;
 using System.Runtime.ExceptionServices;
 using System.Threading;
+using System.Threading.Tasks;
+#if PROJECT_SUPPORT_UNITASK
+using RootTask = Cysharp.Threading.Tasks.UniTask;
+#else
+using RootTask = System.Threading.Tasks.Task;
+#endif
+
 namespace RootPattern
 {
     /// <summary>
@@ -22,16 +29,17 @@ namespace RootPattern
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
         /// <summary>
-        /// Initializes the object graph composed by this root.
+        /// Asynchronously initializes the object graph composed by this root.
         /// </summary>
-        public void Initialize()
+        /// <param name="token">Cancellation token to observe during initialization.</param>
+        public async RootTask InitializeAsync(CancellationToken token)
         {
             EnsureCanInitialize();
             _state = RootState.Initializing;
 
             try
             {
-                OnInitialize();
+                await OnInitializeAsync(token);
 
                 _state = RootState.Initialized;
             }
@@ -102,9 +110,10 @@ namespace RootPattern
         }
 
         /// <summary>
-        /// Creates and configures the object graph for this root.
+        /// Asynchronously creates and configures the object graph for this root.
         /// </summary>
-        protected abstract void OnInitialize();
+        /// <param name="token">Cancellation token supplied to <see cref="InitializeAsync"/>.</param>
+        protected abstract ValueTask OnInitializeAsync(CancellationToken token);
 
         /// <summary>
         /// Releases resources owned directly by this root.

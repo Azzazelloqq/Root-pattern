@@ -32,7 +32,7 @@ type at runtime.
 | --- | --- |
 | Explicit dependencies | Each concrete root declares dependencies in its constructor. |
 | Pure C# | `Root` does not inherit from `MonoBehaviour` or depend on Unity APIs. |
-| Controlled lifetime | A root has `Initialize()`, `Dispose()`, and one cancellation token. |
+| Controlled lifetime | A root has `InitializeAsync()`, `Dispose()`, and one cancellation token. |
 | No hidden architecture | No global root, dependency container, update loop, or child-root tree. |
 
 ## Installation
@@ -63,6 +63,8 @@ Declare the dependencies of a concrete root directly in its constructor:
 
 ```csharp
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using RootPattern;
 
 public interface IGameLog
@@ -81,9 +83,11 @@ public sealed class GameRoot : Root
         _playerName = playerName ?? throw new ArgumentNullException(nameof(playerName));
     }
 
-    protected override void OnInitialize()
+    protected override ValueTask OnInitializeAsync(CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         _log.Write($"Welcome, {_playerName}!");
+        return default;
     }
 }
 ```
@@ -92,30 +96,35 @@ Compose and run the root at an application boundary:
 
 ```csharp
 using var root = new GameRoot(new ConsoleGameLog(), "Player");
-root.Initialize();
+await root.InitializeAsync(CancellationToken.None);
 ```
 
 In Unity, create the root from the lifecycle component or bootstrapper that
 owns the application entry point. The package deliberately does not prescribe
 the Unity callback or provide a `MonoBehaviour` adapter.
 
+`InitializeAsync()` returns `UniTask` when the project includes UniTask; otherwise
+it returns `Task`. The root defines `PROJECT_SUPPORT_UNITASK` automatically when
+the `com.cysharp.unitask` package is available.
+
 ## Lifecycle and cancellation
 
 Each root follows a small, explicit lifecycle:
 
 ```text
-Created -- Initialize() --> Initialized -- Dispose() --> Disposed
+Created -- InitializeAsync() --> Initialized -- Dispose() --> Disposed
               |
               +--> InitializationFailed
 ```
 
-`CancellationToken` belongs to the root lifetime. It is cancelled when
+The token passed to `InitializeAsync()` is forwarded to `OnInitializeAsync()`.
+`Root.CancellationToken` belongs to the root lifetime and is cancelled when
 initialization fails and immediately before `OnDispose()` runs.
 
 ```csharp
-protected override void OnInitialize()
+protected override async ValueTask OnInitializeAsync(CancellationToken token)
 {
-    _operation = LoadDataAsync(CancellationToken);
+    await LoadDataAsync(token);
 }
 
 protected override void OnDispose()
@@ -125,7 +134,7 @@ protected override void OnDispose()
 }
 ```
 
-`Dispose()` is safe to call repeatedly. Calling `Initialize()` more than once
+`Dispose()` is safe to call repeatedly. Calling `InitializeAsync()` more than once
 is an error.
 
 ## What Root deliberately does not do
@@ -161,10 +170,10 @@ public abstract class Root : IDisposable
     public RootState State { get; }
     public CancellationToken CancellationToken { get; }
 
-    public void Initialize();
+    public UniTask InitializeAsync(CancellationToken token);
     public void Dispose();
 
-    protected abstract void OnInitialize();
+    protected abstract ValueTask OnInitializeAsync(CancellationToken token);
     protected virtual void OnDispose();
 }
 ```

@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace RootPattern.Example
 {
@@ -17,10 +19,12 @@ namespace RootPattern.Example
             _rootName = rootName ?? throw new ArgumentNullException(nameof(rootName));
         }
 
-        protected override void OnInitialize()
+        protected override ValueTask OnInitializeAsync(CancellationToken token)
         {
+            token.ThrowIfCancellationRequested();
             _ownedResource = new ExampleResource(_log, _rootName);
             _log.Write($"{_rootName}: initialized.");
+            return default;
         }
 
         protected override void OnDispose()
